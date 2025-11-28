@@ -1,0 +1,129 @@
+.App {
+  width: 100%;
+  max-width: 500px;
+}
+
+.counter-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 30px;
+  padding: 50px 30px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.counter-display {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  padding: 40px;
+  margin-bottom: 30px;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.count {
+  font-size: 72px;
+  font-weight: 300;
+  color: white;
+  display: block;
+  line-height: 1;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.btn {
+  border: none;
+  border-radius: 15px;
+  font-size: 24px;
+  font-weight: 600;
+  padding: 20px 40px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  min-width: 100px;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.btn-decrement {
+  background: #ff6b6b;
+  color: white;
+}
+
+.btn-decrement:hover {
+  background: #ee5a5a;
+}
+
+.btn-reset {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.btn-reset:hover {
+  background: #e0e0e0;
+}
+
+.btn-increment {
+  background: #51cf66;
+  color: white;
+}
+
+.btn-increment:hover {
+  background: #40c057;
+}
+
+.subtitle {
+  color: #666;
+  font-size: 14px;
+  margin-top: 20px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .counter-container {
+    padding: 40px 20px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .count {
+    font-size: 60px;
+  }
+
+  .button-group {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 18px;
+    font-size: 22px;
+  }
+}
+

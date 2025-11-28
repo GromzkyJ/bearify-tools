@@ -7,14 +7,15 @@ This document provides step-by-step instructions for deploying code to test and 
 2. [Prerequisites Check](#prerequisites-check)
 3. [Deploying to Test Environment](#deploying-to-test-environment)
 4. [Deploying to Production Environment](#deploying-to-production-environment)
-5. [Verification Steps](#verification-steps)
-6. [Version Management and Rollback](#version-management-and-rollback)
-7. [Common Deployment Scenarios](#common-deployment-scenarios)
-8. [Troubleshooting Deployment Issues](#troubleshooting-deployment-issues)
-9. [Best Practices](#best-practices)
-10. [Security Best Practices](#security-best-practices)
-11. [Developer Best Practices](#developer-best-practices)
-12. [Quick Command Reference](#quick-command-reference)
+5. [Deploying React Applications](#deploying-react-applications)
+6. [Verification Steps](#verification-steps)
+7. [Version Management and Rollback](#version-management-and-rollback)
+8. [Common Deployment Scenarios](#common-deployment-scenarios)
+9. [Troubleshooting Deployment Issues](#troubleshooting-deployment-issues)
+10. [Best Practices](#best-practices)
+11. [Security Best Practices](#security-best-practices)
+12. [Developer Best Practices](#developer-best-practices)
+13. [Quick Command Reference](#quick-command-reference)
 
 ---
 
@@ -365,6 +366,252 @@ git remote set-url origin https://github.com/johndoe/my-project.git
 - [ ] Forms submit correctly (if applicable)
 - [ ] No console errors in browser
 - [ ] Performance is acceptable
+
+---
+
+## Deploying React Applications
+
+### Understanding React App Deployment
+
+React applications require a build step before deployment. The workflow automatically:
+1. Detects React apps (folders with `package.json`)
+2. Installs dependencies (`npm install`)
+3. Builds the app (`npm run build`)
+4. Deploys the `build/` folder contents
+
+### React App Structure Requirements
+
+Your React app folder must have:
+```
+your-react-app/
+├── package.json          # Required - must have "build" script
+├── src/                  # React source files
+├── public/               # Public assets (index.html, etc.)
+└── .gitignore           # Should exclude node_modules and build
+```
+
+### Deploying a New React App
+
+#### Step 1: Create React App Folder
+```bash
+# Navigate to project root
+cd /path/to/Tools
+
+# Create folder for React app
+mkdir my-react-app
+cd my-react-app
+```
+
+#### Step 2: Initialize React App
+```bash
+# Create package.json
+npm init -y
+
+# Install React dependencies
+npm install react react-dom react-scripts
+
+# Create folder structure
+mkdir -p src public
+```
+
+#### Step 3: Set Up package.json
+Ensure `package.json` has:
+```json
+{
+  "scripts": {
+    "build": "react-scripts build"
+  }
+}
+```
+
+#### Step 4: Test Build Locally (Recommended)
+```bash
+# Install dependencies
+npm install
+
+# Test build
+npm run build
+
+# Verify build folder was created
+ls build/
+```
+
+#### Step 5: Commit and Deploy
+```bash
+# Go back to project root
+cd ..
+
+# Add React app
+git add my-react-app/
+git commit -m "Add React app: my-react-app"
+git remote set-url origin https://YOUR_TOKEN@github.com/USERNAME/REPO.git
+git push origin test
+git remote set-url origin https://github.com/USERNAME/REPO.git
+```
+
+#### Step 6: Monitor Build Process
+1. Go to GitHub → Actions tab
+2. Watch the workflow run
+3. Look for "Build React Apps" step
+4. Verify your app appears in the build log
+5. Wait for deployment to complete (2-5 minutes for React apps)
+
+#### Step 7: Verify Deployment
+Visit: `https://yourdomain.com/tools-test/my-react-app/`
+
+### Updating an Existing React App
+
+#### Step 1: Make Changes
+```bash
+# Navigate to your React app folder
+cd my-react-app
+
+# Make your changes
+# Edit files in src/, etc.
+```
+
+#### Step 2: Test Locally (Recommended)
+```bash
+# Test the app locally
+npm start
+
+# Or test the build
+npm run build
+```
+
+#### Step 3: Commit and Deploy
+```bash
+# Go back to project root
+cd ..
+
+# Commit changes
+git add my-react-app/
+git commit -m "Update React app: description of changes"
+git remote set-url origin https://YOUR_TOKEN@github.com/USERNAME/REPO.git
+git push origin test
+git remote set-url origin https://github.com/USERNAME/REPO.git
+```
+
+### Migrating an Existing React App
+
+If you have an existing React app (like blockchain authentication):
+
+#### Step 1: Prepare Your App
+```bash
+# Ensure your app builds successfully
+cd /path/to/your/existing-react-app
+npm install
+npm run build
+
+# Verify build folder exists
+ls build/
+```
+
+#### Step 2: Copy to Tools Directory
+```bash
+# Copy your app to Tools directory
+cp -r /path/to/your/existing-react-app /path/to/Tools/blockchain-auth
+
+# Or move it
+mv /path/to/your/existing-react-app /path/to/Tools/blockchain-auth
+```
+
+#### Step 3: Verify Structure
+```bash
+cd /path/to/Tools/blockchain-auth
+
+# Check required files exist
+ls package.json    # Must exist
+ls src/            # Must exist
+ls public/          # Should exist
+```
+
+#### Step 4: Update .gitignore
+Ensure `.gitignore` excludes:
+```
+node_modules/
+build/
+.env
+```
+
+#### Step 5: Commit and Deploy
+```bash
+cd /path/to/Tools
+
+git add blockchain-auth/
+git commit -m "Add blockchain authentication React app"
+git remote set-url origin https://YOUR_TOKEN@github.com/USERNAME/REPO.git
+git push origin test
+git remote set-url origin https://github.com/USERNAME/REPO.git
+```
+
+### React App Deployment Checklist
+
+Before deploying a React app:
+- [ ] `package.json` exists in app folder
+- [ ] `package.json` has `"build"` script
+- [ ] `src/` folder exists with React code
+- [ ] `public/index.html` exists
+- [ ] App builds successfully locally (`npm run build`)
+- [ ] `.gitignore` excludes `node_modules/` and `build/`
+- [ ] All dependencies listed in `package.json`
+
+### React App vs HTML App
+
+| Feature | HTML App | React App |
+|---------|----------|-----------|
+| Build Required | No | Yes (`npm run build`) |
+| Deployment Time | 1-2 minutes | 2-5 minutes |
+| Folder Structure | Just HTML files | `src/`, `public/`, `package.json` |
+| Dependencies | None | Listed in `package.json` |
+| Build Output | Files as-is | `build/` folder contents |
+
+### Important Notes for React Apps
+
+1. **Build Time**: React apps take longer to deploy (2-5 minutes) due to build process
+2. **Dependencies**: All dependencies must be in `package.json`
+3. **Build Script**: Must have `"build": "react-scripts build"` or equivalent
+4. **Build Output**: React apps output to `build/` folder (standard)
+5. **No Root package.json**: Don't create `package.json` in root Tools folder
+6. **Independent Builds**: Each React app builds independently
+7. **Error Handling**: If build fails, deployment stops - check GitHub Actions logs
+
+### Troubleshooting React App Deployment
+
+#### Issue: Build Fails in GitHub Actions
+**Symptoms**: Workflow shows error in "Build React Apps" step
+**Solutions**:
+1. Test build locally: `cd your-app && npm install && npm run build`
+2. Check `package.json` has all required dependencies
+3. Verify `build` script exists: `"build": "react-scripts build"`
+4. Check for syntax errors in React code
+5. Review GitHub Actions logs for specific error messages
+
+#### Issue: App Shows Blank Page After Deployment
+**Symptoms**: App URL loads but shows blank page
+**Solutions**:
+1. Check browser console for errors (F12)
+2. Verify `public/index.html` has `<div id="root"></div>`
+3. Check that `src/index.js` renders the App component
+4. Verify all files were deployed (check server via File Manager)
+5. Check for JavaScript errors in browser console
+
+#### Issue: Dependencies Not Installing
+**Symptoms**: Build fails with "module not found" errors
+**Solutions**:
+1. Ensure all dependencies are in `package.json`
+2. Check `package-lock.json` is up to date
+3. Verify Node.js version compatibility
+4. Try deleting `node_modules/` and `package-lock.json`, then `npm install` again
+
+#### Issue: Build Succeeds But App Not Found
+**Symptoms**: Build completes but 404 error when accessing app
+**Solutions**:
+1. Verify app folder name matches URL path
+2. Check that `build/` folder was created
+3. Verify workflow completed successfully
+4. Check server directory structure via File Manager
+5. Ensure `build/` folder contents were copied correctly
 
 ---
 
@@ -1391,6 +1638,32 @@ git push origin test
 # Or reset (use with caution - rewrites history)
 git reset --hard COMMIT_HASH
 git push origin test --force
+```
+
+### React App Deployment
+```bash
+# Create new React app
+mkdir my-react-app
+cd my-react-app
+npm init -y
+npm install react react-dom react-scripts
+
+# Test build locally
+npm run build
+
+# Commit and deploy
+cd ..
+git add my-react-app/
+git commit -m "Add React app"
+git push origin test
+
+# Update existing React app
+cd my-react-app
+# Make changes...
+cd ..
+git add my-react-app/
+git commit -m "Update React app"
+git push origin test
 ```
 
 ---

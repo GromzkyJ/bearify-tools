@@ -19,30 +19,47 @@ jobs:
       with:
         node-version: '18'
     
-    - name: Install dependencies
-      run: npm install
-      if: hashFiles('package.json') != ''
-    
-    - name: Build project
-      run: npm run build
-      if: hashFiles('package.json') != ''
+    - name: Build React Apps
+      run: |
+        # Find all directories with package.json (React apps)
+        for dir in */; do
+          if [ -f "${dir}package.json" ]; then
+            echo "Building React app in ${dir}"
+            cd "${dir}"
+            npm install
+            npm run build
+            cd ..
+          fi
+        done
     
     - name: Prepare build directory
       run: |
-        if [ ! -d "build" ]; then
-          mkdir -p build
-          # Copy root level HTML/CSS/JS files
-          cp -r *.html *.css *.js build/ 2>/dev/null || true
-          # Copy all app folders (calculator, etc.) preserving structure
-          find . -maxdepth 1 -type d ! -name '.' ! -name '.git' ! -name 'build' ! -name 'node_modules' ! -name '.github' -exec cp -r {} build/ \;
-          # Copy public folder if it exists
-          cp -r public build/ 2>/dev/null || true
-        else
-          # Update existing build directory
-          cp -r *.html *.css *.js build/ 2>/dev/null || true
-          find . -maxdepth 1 -type d ! -name '.' ! -name '.git' ! -name 'build' ! -name 'node_modules' ! -name '.github' -exec cp -r {} build/ \;
-          cp -r public build/ 2>/dev/null || true
-        fi
+        mkdir -p build
+        
+        # Copy simple HTML apps (folders without package.json)
+        for dir in */; do
+          dirname=$(basename "$dir")
+          # Skip if it's a React app (has package.json) or special folders
+          if [ ! -f "${dir}package.json" ] && [ "$dirname" != "node_modules" ] && [ "$dirname" != ".git" ] && [ "$dirname" != "build" ] && [ "$dirname" != ".github" ]; then
+            echo "Copying HTML app: ${dirname}"
+            cp -r "${dir}" build/
+          fi
+        done
+        
+        # Copy React app build outputs
+        for dir in */; do
+          dirname=$(basename "$dir")
+          if [ -f "${dir}package.json" ] && [ -d "${dir}build" ]; then
+            echo "Copying React app build: ${dirname}"
+            # Copy the build folder contents to the app folder in build/
+            mkdir -p "build/${dirname}"
+            cp -r "${dir}build"/* "build/${dirname}/"
+          fi
+        done
+        
+        # Copy root level HTML/CSS/JS files
+        cp -r *.html *.css *.js build/ 2>/dev/null || true
+        cp -r public build/ 2>/dev/null || true
     
     - name: Deploy to Test Environment
       if: github.ref == 'refs/heads/test'

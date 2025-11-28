@@ -9,12 +9,13 @@ This guide provides step-by-step instructions for setting up automated deploymen
 4. [Part 3: FTP Account Setup in CyberPanel](#part-3-ftp-account-setup-in-cyberpanel)
 5. [Part 4: GitHub Secrets Configuration](#part-4-github-secrets-configuration)
 6. [Part 5: GitHub Actions Workflow Creation](#part-5-github-actions-workflow-creation)
-7. [Part 6: Testing the Deployment](#part-6-testing-the-deployment)
-8. [Part 7: Usage Instructions](#part-7-usage-instructions)
-9. [Part 8: Version Management System](#part-8-version-management-system)
-10. [Part 9: Security Best Practices](#part-9-security-best-practices)
-11. [Part 10: Developer Best Practices](#part-10-developer-best-practices)
-12. [Troubleshooting](#troubleshooting)
+7. [Part 6: Adding Applications (HTML and React)](#part-6-adding-applications-html-and-react)
+8. [Part 7: Testing the Deployment](#part-7-testing-the-deployment)
+9. [Part 8: Usage Instructions](#part-8-usage-instructions)
+10. [Part 9: Version Management System](#part-9-version-management-system)
+11. [Part 10: Security Best Practices](#part-10-security-best-practices)
+12. [Part 11: Developer Best Practices](#part-11-developer-best-practices)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -246,21 +247,47 @@ jobs:
       with:
         node-version: '18'
     
-    - name: Install dependencies
-      run: npm install
-      if: hashFiles('package.json') != ''
-    
-    - name: Build project
-      run: npm run build
-      if: hashFiles('package.json') != ''
+    - name: Build React Apps
+      run: |
+        # Find all directories with package.json (React apps)
+        for dir in */; do
+          if [ -f "${dir}package.json" ]; then
+            echo "Building React app in ${dir}"
+            cd "${dir}"
+            npm install
+            npm run build
+            cd ..
+          fi
+        done
     
     - name: Prepare build directory
       run: |
-        if [ ! -d "build" ]; then
-          mkdir -p build
-          cp -r *.html *.css *.js build/ 2>/dev/null || true
-          cp -r public build/ 2>/dev/null || true
-        fi
+        mkdir -p build
+        
+        # Copy simple HTML apps (folders without package.json)
+        for dir in */; do
+          dirname=$(basename "$dir")
+          # Skip if it's a React app (has package.json) or special folders
+          if [ ! -f "${dir}package.json" ] && [ "$dirname" != "node_modules" ] && [ "$dirname" != ".git" ] && [ "$dirname" != "build" ] && [ "$dirname" != ".github" ]; then
+            echo "Copying HTML app: ${dirname}"
+            cp -r "${dir}" build/
+          fi
+        done
+        
+        # Copy React app build outputs
+        for dir in */; do
+          dirname=$(basename "$dir")
+          if [ -f "${dir}package.json" ] && [ -d "${dir}build" ]; then
+            echo "Copying React app build: ${dirname}"
+            # Copy the build folder contents to the app folder in build/
+            mkdir -p "build/${dirname}"
+            cp -r "${dir}build"/* "build/${dirname}/"
+          fi
+        done
+        
+        # Copy root level HTML/CSS/JS files
+        cp -r *.html *.css *.js build/ 2>/dev/null || true
+        cp -r public build/ 2>/dev/null || true
     
     - name: Deploy to Test Environment
       if: github.ref == 'refs/heads/test'
@@ -344,7 +371,365 @@ git remote set-url origin https://github.com/YOUR_USERNAME/REPOSITORY_NAME.git
 
 ---
 
-## Part 6: Testing the Deployment
+## Part 6: Adding Applications (HTML and React)
+
+### Understanding Application Types
+
+This deployment system supports two types of applications:
+
+1. **Simple HTML Apps**: Static HTML/CSS/JavaScript files (no build process needed)
+2. **React Apps**: Applications built with React that require `npm install` and `npm run build`
+
+### Folder Structure
+
+Each application should be in its own folder. The recommended structure is:
+
+```
+Tools/
+├── calculator/              # Simple HTML app
+│   └── index.html
+├── react-counter/           # React app
+│   ├── package.json
+│   ├── src/
+│   ├── public/
+│   └── build/ (generated)
+├── blockchain-auth/         # Complex React app
+│   ├── package.json
+│   ├── src/
+│   └── build/ (generated)
+└── another-app/             # Another HTML app
+    └── index.html
+```
+
+### How Deployment Works
+
+#### For Simple HTML Apps:
+1. Create a folder (e.g., `calculator/`)
+2. Add your HTML/CSS/JS files
+3. Push to GitHub
+4. Workflow automatically copies the folder to deployment
+5. Access at: `yourdomain.com/tools/calculator/`
+
+#### For React Apps:
+1. Create a folder (e.g., `react-counter/`)
+2. Add `package.json` with React dependencies
+3. Create React app structure (`src/`, `public/`)
+4. Push to GitHub
+5. Workflow automatically:
+   - Detects `package.json`
+   - Runs `npm install`
+   - Runs `npm run build`
+   - Copies `build/` folder contents to deployment
+6. Access at: `yourdomain.com/tools/react-counter/`
+
+### Creating a Simple HTML App
+
+#### Step 6.1: Create App Folder
+```bash
+# Navigate to your project directory
+cd /path/to/your/project
+
+# Create folder for your app
+mkdir calculator
+cd calculator
+```
+
+#### Step 6.2: Create HTML File
+Create `index.html` in the app folder:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculator</title>
+    <style>
+        /* Your CSS here */
+    </style>
+</head>
+<body>
+    <!-- Your HTML here -->
+    <script>
+        // Your JavaScript here
+    </script>
+</body>
+</html>
+```
+
+#### Step 6.3: Commit and Deploy
+```bash
+# Go back to project root
+cd ..
+
+# Add the app
+git add calculator/
+git commit -m "Add calculator app"
+git push origin test
+```
+
+**Result**: App will be available at `yourdomain.com/tools-test/calculator/`
+
+### Creating a React App
+
+#### Step 6.4: Create React App Folder
+```bash
+# Navigate to your project directory
+cd /path/to/your/project
+
+# Create folder for React app
+mkdir react-counter
+cd react-counter
+```
+
+#### Step 6.5: Initialize React App
+
+**Option A: Create React App from Scratch**
+
+1. Create `package.json`:
+```json
+{
+  "name": "react-counter",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+  }
+}
+```
+
+2. Create folder structure:
+```bash
+mkdir -p src public
+```
+
+3. Create `public/index.html`:
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>React Counter</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
+```
+
+4. Create `src/index.js`:
+```javascript
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+5. Create `src/App.js`:
+```javascript
+import React from 'react';
+import './App.css';
+
+function App() {
+  return (
+    <div className="App">
+      <h1>React App</h1>
+    </div>
+  );
+}
+
+export default App;
+```
+
+**Option B: Use Create React App (if you have it installed locally)**
+
+```bash
+# Install create-react-app globally (one time)
+npm install -g create-react-app
+
+# Create React app
+npx create-react-app react-counter
+
+# Move into the folder
+cd react-counter
+```
+
+#### Step 6.6: Add .gitignore
+Create `.gitignore` in your React app folder:
+
+```
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Production
+/build
+
+# Misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+```
+
+#### Step 6.7: Test Locally (Optional)
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Build for production (to test build process)
+npm run build
+```
+
+#### Step 6.8: Commit and Deploy
+```bash
+# Go back to project root
+cd ..
+
+# Add the React app
+git add react-counter/
+git commit -m "Add React counter app"
+git push origin test
+```
+
+**Result**: 
+- Workflow will automatically detect `package.json`
+- Run `npm install` and `npm run build`
+- Deploy `react-counter/build/` contents to `yourdomain.com/tools-test/react-counter/`
+
+### Migrating an Existing React App
+
+If you have an existing React app (like blockchain authentication), follow these steps:
+
+#### Step 6.9: Prepare Your React App
+1. Ensure your app has a `package.json` file
+2. Ensure your app has a `build` script in `package.json`:
+   ```json
+   "scripts": {
+     "build": "react-scripts build"
+   }
+   ```
+3. Ensure your app builds successfully locally:
+   ```bash
+   npm install
+   npm run build
+   ```
+
+#### Step 6.10: Move App to Tools Folder
+```bash
+# Copy your React app to the Tools directory
+cp -r /path/to/your/react-app /path/to/Tools/blockchain-auth
+
+# Or if you're moving it
+mv /path/to/your/react-app /path/to/Tools/blockchain-auth
+```
+
+#### Step 6.11: Verify App Structure
+Your app folder should have:
+```
+blockchain-auth/
+├── package.json          # Required
+├── src/                  # Your React source files
+├── public/               # Public assets
+└── .gitignore           # Should exclude node_modules and build
+```
+
+#### Step 6.12: Commit and Deploy
+```bash
+# Add the app
+git add blockchain-auth/
+git commit -m "Add blockchain authentication app"
+git push origin test
+```
+
+**Result**: App will be built and deployed automatically.
+
+### Important Notes for React Apps
+
+1. **Build Output**: React apps must output to a `build/` folder (standard for Create React App)
+2. **Dependencies**: All dependencies must be listed in `package.json`
+3. **Build Script**: Must have `"build": "react-scripts build"` or equivalent
+4. **No Root package.json**: Don't create a `package.json` in the root Tools folder
+5. **Each App Independent**: Each React app builds independently
+6. **Build Time**: React apps take longer to deploy (2-5 minutes) due to build process
+
+### App Isolation
+
+- ✅ Each app is completely isolated in its own folder
+- ✅ Changes to one app don't affect others
+- ✅ Each app has its own dependencies
+- ✅ Each app deploys to its own URL path
+- ✅ No shared resources between apps
+
+### Deployment URLs
+
+After deployment, apps are accessible at:
+- **HTML App**: `https://yourdomain.com/tools/app-name/`
+- **React App**: `https://yourdomain.com/tools/app-name/`
+
+Both types of apps work the same way in terms of URL structure.
+
+### Troubleshooting React App Deployment
+
+#### Issue: Build Fails
+**Symptoms**: GitHub Actions shows build error
+**Solutions**:
+1. Test build locally: `npm install && npm run build`
+2. Check `package.json` has correct dependencies
+3. Ensure `build` script exists in `package.json`
+4. Check for syntax errors in React code
+
+#### Issue: App Not Found After Deployment
+**Symptoms**: 404 error when accessing app URL
+**Solutions**:
+1. Verify app folder name matches URL path
+2. Check that `build/` folder was created
+3. Verify workflow completed successfully
+4. Check server directory structure
+
+#### Issue: Dependencies Not Installing
+**Symptoms**: Build fails with "module not found"
+**Solutions**:
+1. Ensure `package.json` has all required dependencies
+2. Check `package-lock.json` is committed (optional but recommended)
+3. Verify Node.js version compatibility
+
+---
+
+## Part 7: Testing the Deployment
 
 ### Step 6.1: Create a Test File
 Create a simple `index.html` file in your project:
@@ -438,7 +823,7 @@ git remote set-url origin https://github.com/YOUR_USERNAME/REPOSITORY_NAME.git
 
 ---
 
-## Part 7: Usage Instructions
+## Part 8: Usage Instructions
 
 ### Daily Workflow
 
@@ -484,7 +869,7 @@ git remote set-url origin https://github.com/YOUR_USERNAME/REPOSITORY_NAME.git
 
 ---
 
-## Part 8: Version Management System
+## Part 9: Version Management System
 
 ### Understanding Version Control
 
@@ -696,7 +1081,7 @@ Update this file with each version release.
 
 ---
 
-## Part 9: Security Best Practices
+## Part 10: Security Best Practices
 
 ### Credential Management
 
@@ -803,7 +1188,7 @@ Before deploying to production:
 
 ---
 
-## Part 10: Developer Best Practices
+## Part 11: Developer Best Practices
 
 ### Code Quality
 
