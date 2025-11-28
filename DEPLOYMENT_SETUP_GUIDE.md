@@ -492,6 +492,7 @@ cd react-counter
   "name": "react-counter",
   "version": "1.0.0",
   "private": true,
+  "homepage": ".",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -509,6 +510,8 @@ cd react-counter
   }
 }
 ```
+
+**⚠️ IMPORTANT**: The `"homepage": "."` field is required for React apps deployed to subdirectories. This makes React use relative paths instead of absolute paths for assets (CSS, JS files).
 
 2. Create folder structure:
 ```bash
@@ -682,9 +685,10 @@ git push origin test
 1. **Build Output**: React apps must output to a `build/` folder (standard for Create React App)
 2. **Dependencies**: All dependencies must be listed in `package.json`
 3. **Build Script**: Must have `"build": "react-scripts build"` or equivalent
-4. **No Root package.json**: Don't create a `package.json` in the root Tools folder
-5. **Each App Independent**: Each React app builds independently
-6. **Build Time**: React apps take longer to deploy (2-5 minutes) due to build process
+4. **Homepage Field**: **REQUIRED** - Must include `"homepage": "."` in `package.json` to use relative paths for assets (CSS, JS files). Without this, assets will fail to load in subdirectories.
+5. **No Root package.json**: Don't create a `package.json` in the root Tools folder
+6. **Each App Independent**: Each React app builds independently
+7. **Build Time**: React apps take longer to deploy (2-5 minutes) due to build process
 
 ### App Isolation
 

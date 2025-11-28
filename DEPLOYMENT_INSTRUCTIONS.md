@@ -549,6 +549,7 @@ git remote set-url origin https://github.com/USERNAME/REPO.git
 
 Before deploying a React app:
 - [ ] `package.json` exists in app folder
+- [ ] `package.json` has `"homepage": "."` field (REQUIRED for subdirectory deployment)
 - [ ] `package.json` has `"build"` script
 - [ ] `src/` folder exists with React code
 - [ ] `public/index.html` exists
@@ -595,6 +596,15 @@ Before deploying a React app:
 3. Check that `src/index.js` renders the App component
 4. Verify all files were deployed (check server via File Manager)
 5. Check for JavaScript errors in browser console
+
+#### Issue: CSS/JS Files Return 404 Errors
+**Symptoms**: App loads but CSS/JS files show 404 errors in console
+**Solutions**:
+1. **Most Common Fix**: Add `"homepage": "."` to `package.json` in your React app folder
+2. Rebuild the app: `cd your-app && npm run build`
+3. Commit and push the updated `package.json`
+4. Verify the build output uses relative paths (check `build/index.html` - paths should start with `./` not `/`)
+5. If using Create React App, the `homepage` field is required for subdirectory deployment
 
 #### Issue: Dependencies Not Installing
 **Symptoms**: Build fails with "module not found" errors
