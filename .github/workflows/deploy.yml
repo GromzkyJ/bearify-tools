@@ -44,6 +44,8 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./build/
         server-dir: /public_html/tools-test/
+        protocol: ftp
+        port: 21
         exclude: |
           **/.git*
           **/.git*/**
@@ -58,6 +60,8 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./build/
         server-dir: /public_html/tools/
+        protocol: ftp
+        port: 21
         exclude: |
           **/.git*
           **/.git*/**
