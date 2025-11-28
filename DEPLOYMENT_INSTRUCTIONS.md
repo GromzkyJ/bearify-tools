@@ -8,10 +8,13 @@ This document provides step-by-step instructions for deploying code to test and 
 3. [Deploying to Test Environment](#deploying-to-test-environment)
 4. [Deploying to Production Environment](#deploying-to-production-environment)
 5. [Verification Steps](#verification-steps)
-6. [Common Deployment Scenarios](#common-deployment-scenarios)
-7. [Troubleshooting Deployment Issues](#troubleshooting-deployment-issues)
-8. [Best Practices](#best-practices)
-9. [Quick Command Reference](#quick-command-reference)
+6. [Version Management and Rollback](#version-management-and-rollback)
+7. [Common Deployment Scenarios](#common-deployment-scenarios)
+8. [Troubleshooting Deployment Issues](#troubleshooting-deployment-issues)
+9. [Best Practices](#best-practices)
+10. [Security Best Practices](#security-best-practices)
+11. [Developer Best Practices](#developer-best-practices)
+12. [Quick Command Reference](#quick-command-reference)
 
 ---
 
@@ -404,6 +407,218 @@ If something seems wrong, verify files are in correct location:
 
 ---
 
+## Version Management and Rollback
+
+### Understanding Version History
+
+Every commit in Git creates a version snapshot. You can revert to any previous version at any time. This is your safety net when deployments go wrong.
+
+### Viewing Version History
+
+```bash
+# See all commits (versions) with their IDs
+git log --oneline
+
+# See detailed history with graph
+git log --oneline --graph --all --decorate
+
+# See last 10 commits
+git log --oneline -10
+
+# See commits for a specific file
+git log --oneline -- path/to/file.js
+```
+
+**Example Output:**
+```
+abc1234 (HEAD -> test) Version 3 - Added new feature
+def5678 Version 2 - Fixed bug
+ghi9012 Version 1 - Initial release
+```
+
+### Using Version Tags
+
+Version tags make it easier to identify and revert to specific versions.
+
+#### Creating Version Tags
+
+```bash
+# After a successful production deployment, create a tag
+git checkout main
+
+# Tag the current version (semantic versioning: MAJOR.MINOR.PATCH)
+git tag v1.0.0 -m "Version 1.0.0: Initial production release"
+git tag v1.1.0 -m "Version 1.1.0: Added user authentication"
+git tag v2.0.0 -m "Version 2.0.0: Major redesign"
+
+# Push tags to GitHub
+git push origin --tags
+```
+
+#### Viewing Tags
+
+```bash
+# List all tags
+git tag
+
+# See tags with commit messages
+git tag -l -n
+
+# See what changed between versions
+git diff v1.0.0 v1.1.0
+```
+
+### Rolling Back to a Previous Version
+
+#### Scenario: Version 3 Broke the Site
+
+**Step 1: Identify the Problem Version**
+```bash
+# See recent commits
+git log --oneline -5
+
+# Output:
+# abc1234 (HEAD -> test) Version 3 - BROKEN
+# def5678 Version 2 - Working
+# ghi9012 Version 1 - Working
+```
+
+**Step 2: Revert to Previous Working Version (Recommended Method)**
+
+This method creates a new commit that undoes the broken changes, preserving history:
+
+```bash
+# Switch to test branch
+git checkout test
+
+# Revert the broken commit (creates a new commit that undoes it)
+git revert abc1234
+
+# This opens an editor for commit message, or use -m flag:
+git revert abc1234 -m "Revert to Version 2: Version 3 caused issues"
+
+# Push the revert to test
+git remote set-url origin https://YOUR_TOKEN@github.com/USERNAME/REPO.git
+git push origin test
+git remote set-url origin https://github.com/USERNAME/REPO.git
+```
+
+**Step 3: Verify on Test Environment**
+- Wait for deployment to complete
+- Check `https://yourdomain.com/tools-test/`
+- Verify site is working again
+
+**Step 4: Deploy to Production**
+```bash
+# Merge to main
+git checkout main
+git merge test
+git remote set-url origin https://YOUR_TOKEN@github.com/USERNAME/REPO.git
+git push origin main
+git remote set-url origin https://github.com/USERNAME/REPO.git
+```
+
+#### Alternative: Revert Using Version Tags
+
+```bash
+# 1. See available versions
+git tag
+
+# 2. Create a new branch from a previous version
+git checkout -b hotfix/rollback-to-v1.0.0 v1.0.0
+
+# 3. Test the rollback
+# ... verify everything works ...
+
+# 4. Merge back to test
+git checkout test
+git merge hotfix/rollback-to-v1.0.0
+git push origin test
+
+# 5. Deploy to production
+git checkout main
+git merge test
+git push origin main
+```
+
+#### Emergency Rollback (Use with Extreme Caution)
+
+**⚠️ WARNING**: This rewrites history. Only use if:
+- You're the only one working on the project
+- You need immediate rollback
+- You understand this removes commits from history
+
+```bash
+# 1. Find the commit hash of the working version
+git log --oneline
+
+# 2. Reset to that commit
+git checkout test
+git reset --hard def5678  # Replace with your commit hash
+
+# 3. Force push (ONLY if absolutely necessary)
+git remote set-url origin https://YOUR_TOKEN@github.com/USERNAME/REPO.git
+git push origin test --force
+git remote set-url origin https://github.com/USERNAME/REPO.git
+
+# 4. Verify, then deploy to production
+git checkout main
+git reset --hard def5678
+git push origin main --force
+```
+
+### Version Management Best Practices
+
+#### 1. Tag After Successful Deployments
+```bash
+# After successful production deployment
+git checkout main
+git tag v1.2.0 -m "Version 1.2.0: Added payment integration"
+git push origin --tags
+```
+
+#### 2. Use Semantic Versioning
+- **MAJOR** (v2.0.0): Breaking changes
+- **MINOR** (v1.1.0): New features, backward compatible
+- **PATCH** (v1.0.1): Bug fixes
+
+#### 3. Document Version Changes
+Keep a `CHANGELOG.md` file:
+```markdown
+## [1.2.0] - 2024-01-15
+### Added
+- Payment integration
+- User dashboard
+
+### Fixed
+- Login bug on mobile
+- Memory leak in API calls
+```
+
+#### 4. Test Rollback Procedures
+- Periodically test your ability to rollback
+- Document the rollback process
+- Ensure team knows how to rollback
+
+#### 5. Never Delete Tags
+- Tags are permanent markers
+- They help identify versions
+- Keep them for historical reference
+
+### Quick Rollback Checklist
+
+When you need to rollback:
+- [ ] Identify the broken version/commit
+- [ ] Identify the last working version
+- [ ] Choose rollback method (revert vs reset)
+- [ ] Test rollback on test environment first
+- [ ] Verify site works after rollback
+- [ ] Deploy to production
+- [ ] Document what went wrong
+- [ ] Tag the rollback version
+
+---
+
 ## Common Deployment Scenarios
 
 ### Scenario 1: Deploying a Single File Change
@@ -718,60 +933,394 @@ CONFLICT (content): Merge conflict in file.js
 ### 1. Always Test Before Production
 - ✅ Deploy to test environment first
 - ✅ Verify everything works on test site
+- ✅ Test all functionality thoroughly
+- ✅ Check on multiple browsers/devices
 - ✅ Only then merge to main for production
+- ❌ Never skip testing
+- ❌ Never deploy untested code
 
 ### 2. Use Descriptive Commit Messages
-- ✅ Good: "Add user authentication with email verification"
-- ✅ Good: "Fix mobile menu not closing on click"
+Follow conventional commit format:
+```
+type(scope): subject
+
+Examples:
+feat(auth): add user login functionality
+fix(dashboard): resolve memory leak in widgets
+docs(readme): update installation instructions
+refactor(api): optimize endpoint responses
+```
+
+- ✅ Good: "feat(auth): add user login with email verification"
+- ✅ Good: "fix(ui): resolve mobile menu not closing on click"
+- ✅ Good: "docs(deploy): update deployment instructions"
 - ❌ Bad: "fix"
 - ❌ Bad: "update"
+- ❌ Bad: "changes"
 
 ### 3. Commit Logical Units of Work
 - ✅ One feature = one commit
 - ✅ One bug fix = one commit
+- ✅ Related changes together
 - ❌ Don't mix unrelated changes in one commit
+- ❌ Don't commit everything at once
 
 ### 4. Review Changes Before Committing
 ```bash
 # Always review what you're about to commit
-git status
-git diff
+git status          # See what files changed
+git diff            # See actual changes
+git diff --staged   # See staged changes
 ```
 
+**Check for:**
+- Unintended changes
+- Debug code (console.log, etc.)
+- Hardcoded credentials
+- Unnecessary files
+
 ### 5. Keep Test and Main in Sync
-- After deploying to production, merge main back to test:
+After deploying to production, merge main back to test:
 ```bash
 git checkout test
 git merge main
 git push origin test
 ```
 
-### 6. Don't Skip Steps
-- Don't push directly to main
-- Don't skip testing
-- Don't ignore error messages
+This ensures test environment reflects production.
 
-### 7. Monitor Deployments
-- Always check GitHub Actions after pushing
-- Always verify the website after deployment
-- Check browser console for errors
-
-### 8. Document Significant Changes
-- For major changes, update documentation
-- Note any breaking changes
-- Document new features
-
-### 9. Backup Before Major Changes
-- If making significant changes, consider creating a backup branch:
+### 6. Tag Important Versions
 ```bash
-git checkout -b backup/before-major-change
-git push origin backup/before-major-change
+# After successful production deployment
+git checkout main
+git tag v1.2.0 -m "Version 1.2.0: Added payment integration"
+git push origin --tags
 ```
 
-### 10. Communicate with Team
-- If working with others, communicate before deploying
-- Let team know about breaking changes
-- Coordinate deployments if multiple people are working
+### 7. Don't Skip Steps
+- ❌ Don't push directly to main
+- ❌ Don't skip testing
+- ❌ Don't ignore error messages
+- ❌ Don't skip code review
+- ❌ Don't skip verification
+
+### 8. Monitor Deployments
+- ✅ Always check GitHub Actions after pushing
+- ✅ Always verify the website after deployment
+- ✅ Check browser console for errors
+- ✅ Monitor for 5-10 minutes after deployment
+- ✅ Check error logs if available
+
+### 9. Document Significant Changes
+- ✅ Update CHANGELOG.md for major versions
+- ✅ Note breaking changes
+- ✅ Document new features
+- ✅ Update README if needed
+- ✅ Document configuration changes
+
+### 10. Backup Before Major Changes
+```bash
+# Create backup branch before major changes
+git checkout -b backup/before-major-change
+git push origin backup/before-major-change
+
+# Or tag current version
+git tag backup-before-redesign
+git push origin --tags
+```
+
+### 11. Communicate with Team
+- ✅ Notify team before major deployments
+- ✅ Communicate breaking changes
+- ✅ Coordinate deployments if multiple people working
+- ✅ Update team on deployment status
+- ✅ Share rollback plans for major changes
+
+### 12. Version Management
+- ✅ Tag versions after successful deployments
+- ✅ Use semantic versioning (v1.2.3)
+- ✅ Keep version history clean
+- ✅ Document version changes
+- ✅ Test rollback procedures
+
+### 13. Code Quality
+- ✅ Remove debug code before committing
+- ✅ Remove console.log statements
+- ✅ Remove commented-out code
+- ✅ Follow project style guide
+- ✅ Keep code organized
+
+### 14. Security
+- ✅ Never commit credentials
+- ✅ Use GitHub Secrets for sensitive data
+- ✅ Review code for security issues
+- ✅ Keep dependencies updated
+- ✅ Use strong passwords
+
+---
+
+## Security Best Practices
+
+### Credential Management
+
+#### Personal Access Tokens
+- ✅ **DO**: Store tokens in password manager
+- ✅ **DO**: Use tokens with minimal required permissions
+- ✅ **DO**: Set expiration dates (90 days recommended)
+- ✅ **DO**: Rotate tokens periodically
+- ✅ **DO**: Use different tokens for different projects
+- ❌ **DON'T**: Commit tokens to repository
+- ❌ **DON'T**: Share tokens in chat/email
+- ❌ **DON'T**: Use tokens with excessive permissions
+- ❌ **DON'T**: Leave tokens in remote URL
+
+#### GitHub Secrets
+- ✅ **DO**: Use GitHub Secrets for all sensitive data
+- ✅ **DO**: Review secrets regularly
+- ✅ **DO**: Remove unused secrets
+- ✅ **DO**: Use descriptive secret names
+- ❌ **DON'T**: Hardcode secrets in workflow files
+- ❌ **DON'T**: Log secrets in workflow outputs
+- ❌ **DON'T**: Share secret values
+
+#### FTP Credentials
+- ✅ **DO**: Use strong, unique passwords
+- ✅ **DO**: Change FTP passwords periodically (every 90 days)
+- ✅ **DO**: Use FTP accounts with minimal directory access
+- ✅ **DO**: Monitor FTP access logs
+- ❌ **DON'T**: Reuse passwords across projects
+- ❌ **DON'T**: Share FTP credentials
+- ❌ **DON'T**: Use weak passwords
+
+### Repository Security
+
+#### Branch Protection
+Enable branch protection for `main`:
+1. GitHub → Settings → Branches
+2. Add rule for `main` branch
+3. Enable:
+   - Require pull request reviews
+   - Require status checks
+   - Do not allow force pushes
+   - Do not allow deletions
+
+#### Access Control
+- ✅ **DO**: Limit repository access to necessary people
+- ✅ **DO**: Review access permissions regularly
+- ✅ **DO**: Remove access for people who leave
+- ✅ **DO**: Use teams for access management
+- ❌ **DON'T**: Give admin access unnecessarily
+- ❌ **DON'T**: Share repository access casually
+
+### Code Security
+
+#### Before Committing
+- ✅ **DO**: Check for hardcoded credentials
+- ✅ **DO**: Remove debug code
+- ✅ **DO**: Remove console.log statements
+- ✅ **DO**: Review for security vulnerabilities
+- ❌ **DON'T**: Commit API keys or passwords
+- ❌ **DON'T**: Commit configuration files with secrets
+- ❌ **DON'T**: Leave sensitive data in code
+
+#### Security Checklist
+Before every commit:
+- [ ] No credentials in code
+- [ ] No API keys hardcoded
+- [ ] No sensitive data in comments
+- [ ] No debug code left in
+- [ ] Dependencies are up to date
+- [ ] No security warnings
+
+### Deployment Security
+
+#### Pre-Deployment
+- ✅ **DO**: Review all changes
+- ✅ **DO**: Test in test environment
+- ✅ **DO**: Verify no credentials exposed
+- ✅ **DO**: Check for security updates
+- ❌ **DON'T**: Deploy without testing
+- ❌ **DON'T**: Deploy with known vulnerabilities
+
+#### Post-Deployment
+- ✅ **DO**: Verify deployment completed
+- ✅ **DO**: Check for errors
+- ✅ **DO**: Monitor for suspicious activity
+- ✅ **DO**: Verify HTTPS is working
+- ❌ **DON'T**: Ignore deployment errors
+- ❌ **DON'T**: Skip verification
+
+---
+
+## Developer Best Practices
+
+### Code Quality Standards
+
+#### Code Organization
+- ✅ **DO**: Organize code into logical modules
+- ✅ **DO**: Use consistent naming conventions
+- ✅ **DO**: Keep functions small and focused
+- ✅ **DO**: Write self-documenting code
+- ✅ **DO**: Remove unused code
+- ❌ **DON'T**: Create monolithic files
+- ❌ **DON'T**: Use unclear variable names
+- ❌ **DON'T**: Leave commented-out code
+
+#### Code Review Process
+Before pushing:
+```bash
+# Review your changes
+git diff
+
+# Check for:
+# - Unused imports
+# - Console.log statements
+# - Hardcoded values
+# - Security issues
+# - Code style consistency
+```
+
+### Git Workflow Standards
+
+#### Commit Message Format
+Use conventional commits:
+```
+type(scope): subject
+
+Types:
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation
+- style: Code style (formatting)
+- refactor: Code refactoring
+- test: Adding tests
+- chore: Maintenance
+
+Examples:
+feat(auth): add user login
+fix(dashboard): resolve memory leak
+docs(readme): update instructions
+```
+
+#### Branch Naming
+- ✅ `feature/user-authentication`
+- ✅ `fix/login-bug`
+- ✅ `hotfix/critical-patch`
+- ✅ `refactor/api-endpoints`
+- ❌ `new-feature`
+- ❌ `fix`
+- ❌ `test`
+
+### Testing Standards
+
+#### Before Committing
+- ✅ **DO**: Test locally first
+- ✅ **DO**: Test all functionality
+- ✅ **DO**: Test edge cases
+- ✅ **DO**: Test error scenarios
+- ❌ **DON'T**: Commit untested code
+- ❌ **DON'T**: Assume it works
+
+#### Before Deploying
+- ✅ **DO**: Test in test environment
+- ✅ **DO**: Test on multiple browsers
+- ✅ **DO**: Test on mobile devices
+- ✅ **DO**: Test all user flows
+- ❌ **DON'T**: Deploy without testing
+- ❌ **DON'T**: Skip browser testing
+
+### Documentation Standards
+
+#### Code Documentation
+- ✅ **DO**: Document complex logic
+- ✅ **DO**: Add comments for non-obvious code
+- ✅ **DO**: Keep documentation up to date
+- ✅ **DO**: Document API endpoints
+- ❌ **DON'T**: Over-comment obvious code
+- ❌ **DON'T**: Leave outdated comments
+
+#### Project Documentation
+- ✅ **DO**: Maintain README.md
+- ✅ **DO**: Keep CHANGELOG.md updated
+- ✅ **DO**: Document setup process
+- ✅ **DO**: Document environment variables
+- ✅ **DO**: Document deployment process
+- ❌ **DON'T**: Assume others know the setup
+- ❌ **DON'T**: Skip documentation
+
+### Performance Standards
+
+#### Optimization
+- ✅ **DO**: Optimize images before committing
+- ✅ **DO**: Minify production code
+- ✅ **DO**: Use efficient algorithms
+- ✅ **DO**: Monitor performance metrics
+- ❌ **DON'T**: Commit large unoptimized files
+- ❌ **DON'T**: Ignore performance warnings
+
+#### Build Process
+- ✅ **DO**: Use build tools for production
+- ✅ **DO**: Remove development code from production
+- ✅ **DO**: Optimize bundle sizes
+- ✅ **DO**: Test build process locally
+- ❌ **DON'T**: Deploy development code
+- ❌ **DON'T**: Skip build optimization
+
+### Error Handling
+
+#### Error Management
+- ✅ **DO**: Handle errors gracefully
+- ✅ **DO**: Log errors appropriately
+- ✅ **DO**: Provide user-friendly error messages
+- ✅ **DO**: Monitor error logs
+- ❌ **DON'T**: Ignore errors
+- ❌ **DON'T**: Expose sensitive information in errors
+
+#### Debugging
+- ✅ **DO**: Remove console.log before production
+- ✅ **DO**: Use proper logging tools
+- ✅ **DO**: Test error scenarios
+- ❌ **DON'T**: Leave debug code in production
+- ❌ **DON'T**: Commit temporary debugging code
+
+### Maintenance Standards
+
+#### Regular Maintenance
+- ✅ **DO**: Update dependencies regularly
+- ✅ **DO**: Review and remove unused code
+- ✅ **DO**: Refactor when needed
+- ✅ **DO**: Keep security patches updated
+- ❌ **DON'T**: Let dependencies get outdated
+- ❌ **DON'T**: Accumulate technical debt
+
+#### Monitoring
+- ✅ **DO**: Monitor application performance
+- ✅ **DO**: Monitor error rates
+- ✅ **DO**: Set up alerts for critical issues
+- ✅ **DO**: Review logs regularly
+- ❌ **DON'T**: Deploy and forget
+- ❌ **DON'T**: Ignore warning signs
+
+### Developer Checklist
+
+**Before Every Commit:**
+- [ ] Code follows project style guide
+- [ ] No console.log or debug code
+- [ ] No hardcoded credentials
+- [ ] Code is tested locally
+- [ ] Commit message is descriptive
+- [ ] No unnecessary files included
+- [ ] Documentation updated if needed
+
+**Before Every Deployment:**
+- [ ] All tests pass
+- [ ] Code reviewed (if team project)
+- [ ] Tested in test environment
+- [ ] Performance checked
+- [ ] Security reviewed
+- [ ] Documentation updated
+- [ ] Team notified (if major change)
+- [ ] Backup/version tag created (if major change)
 
 ---
 
@@ -813,6 +1362,37 @@ git remote set-url origin https://github.com/USERNAME/REPO.git
 2. Test URL: `https://yourdomain.com/tools-test/`
 3. Production URL: `https://yourdomain.com/tools/`
 
+### Version Management
+```bash
+# View version history
+git log --oneline
+
+# Create version tag
+git tag v1.2.0 -m "Version 1.2.0 description"
+git push origin --tags
+
+# Revert to previous version
+git revert COMMIT_HASH
+git push origin test
+
+# View all tags
+git tag
+```
+
+### Rollback to Previous Version
+```bash
+# Find the commit hash
+git log --oneline
+
+# Revert (recommended - preserves history)
+git revert COMMIT_HASH
+git push origin test
+
+# Or reset (use with caution - rewrites history)
+git reset --hard COMMIT_HASH
+git push origin test --force
+```
+
 ---
 
 ## Important Reminders
@@ -821,6 +1401,11 @@ git remote set-url origin https://github.com/USERNAME/REPO.git
 - **NEVER** commit your Personal Access Token to the repository
 - **ALWAYS** remove token from remote URL after pushing
 - **NEVER** share your GitHub token or FTP credentials
+- **NEVER** commit API keys, passwords, or secrets
+- **ALWAYS** use GitHub Secrets for sensitive data
+- **ALWAYS** review code for security issues before committing
+- **ALWAYS** use strong, unique passwords
+- **ALWAYS** rotate credentials periodically
 
 ### ⚠️ Before Production Deployment
 - [ ] Tested on test environment
@@ -828,12 +1413,28 @@ git remote set-url origin https://github.com/USERNAME/REPO.git
 - [ ] Checked for errors in browser console
 - [ ] Reviewed all changes one more time
 - [ ] Confirmed no breaking changes
+- [ ] No credentials or secrets in code
+- [ ] No debug code (console.log, etc.)
+- [ ] Code reviewed (if team project)
+- [ ] Version tag ready (for major releases)
+- [ ] Team notified (if major change)
 
 ### ⚠️ After Production Deployment
 - [ ] Verified production site loads correctly
 - [ ] Tested all functionality
 - [ ] Checked for errors
 - [ ] Monitored for a few minutes
+- [ ] Created version tag (if major release)
+- [ ] Updated CHANGELOG.md (if applicable)
+- [ ] Documented any issues encountered
+
+### ⚠️ Version Management
+- **ALWAYS** tag important versions after successful deployments
+- **ALWAYS** test rollback procedures periodically
+- **ALWAYS** document version changes in CHANGELOG.md
+- **NEVER** delete version tags
+- **NEVER** force push to main branch (unless emergency)
+- **ALWAYS** use semantic versioning (v1.2.3)
 
 ---
 
