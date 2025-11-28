@@ -43,7 +43,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./build/
-        server-dir: /public_html/tools-test/
+        server-dir: ./tools-test/
         protocol: ftp
         port: 21
         exclude: |
@@ -59,7 +59,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./build/
-        server-dir: /public_html/tools/
+        server-dir: ./tools/
         protocol: ftp
         port: 21
         exclude: |
